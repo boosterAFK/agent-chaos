@@ -1,8 +1,8 @@
 from typing import Any
 
-from ..fault_injector import Fault
+from injector.base import Fault
 
-class MalformedJSONFault(Fault):
+class SchemaMutationFault(Fault):
     def __init__(self, missing_key: str):
         self.missing_key = missing_key
 

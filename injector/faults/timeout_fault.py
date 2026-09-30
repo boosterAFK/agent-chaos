@@ -1,4 +1,4 @@
-from ..fault_injector import Fault
+from injector.base import Fault
 
 import time
 from typing import Any
@@ -11,7 +11,7 @@ class TimeoutFault(Fault):
     def apply(self, tool_name: str, original_callable, *args, **kwargs) -> Any:
         time.sleep(self.delay_seconds)
         if self.raise_error:
-            raise TimeoutError(f"[504] Simulated timeout in tool '{tool_name}' failed to respond in time.")
+            raise TimeoutError(f"[504] Timeout in tool '{tool_name}' failed to respond in time.")
 
         return original_callable(*args, **kwargs)
 

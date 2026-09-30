@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Optional
 from typing import Any
 
-from runner.fault_injector import FaultInjector
+from injector.base import FaultInjector
 
 class AgentRunner(ABC):
     """
@@ -32,11 +32,16 @@ class AgentRunner(ABC):
         self.app = app
         return app
 
-    def invoke(self, input_data: Dict[str, Any], thread_id: str) -> Dict[str, Any]:
+    def invoke(
+        self,
+        input_data: Dict[str, Any],
+        thread_id: str,
+        recursion_limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """Validates compilation and delegates execution."""
         if not self._is_compiled:
             self.compile()
-        return self._invoke(input_data, self._get_config(thread_id))
+        return self._invoke(input_data, self._get_config(thread_id, recursion_limit))
 
     def get_state(self, thread_id: str) -> Dict[str, Any]:
         """Validates compilation and delegates state retrieval."""
@@ -52,8 +57,12 @@ class AgentRunner(ABC):
         if not self._is_compiled:
             raise RuntimeError("The agent graph must be compiled before accessing or mutating state.")
 
-    def _get_config(self, thread_id: str) -> Dict[str, Any]:
-        return {"configurable": {"thread_id": thread_id}}
+    #TODO: check if is langhcain only if so move to langchain_runner.py
+    def _get_config(self, thread_id: str, recursion_limit: Optional[int] = None) -> Dict[str, Any]:
+        config: Dict[str, Any] = {"configurable": {"thread_id": thread_id}}
+        if recursion_limit is not None:
+            config["recursion_limit"] = recursion_limit
+        return config
 
     @abstractmethod
     def _compile(self) -> Any:
@@ -75,6 +84,6 @@ class AgentRunner(ABC):
     def _bind_and_poison_tools(self) -> None:
         """
         Concrete subclasses must implement this to iterate over their specific 
-        framework's tools and wrap them using self.fault_injector.intercept()
+        framework's tools and wrap them using self._fault_injector.intercept()
         """
         pass
