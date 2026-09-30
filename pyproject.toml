@@ -1,0 +1,14 @@
+[project]
+name = "agent-chaos"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain-openai>=1.6.6",
+    "langgraph>=1.2.12",
+    "openinference-instrumentation-langchain>=0.1.76",
+    "opentelemetry-api>=1.45.0",
+    "opentelemetry-exporter-otlp>=1.45.0",
+    "opentelemetry-sdk>=1.45.0",
+]
