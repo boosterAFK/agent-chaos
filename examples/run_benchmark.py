@@ -16,7 +16,7 @@ from runner.langgraph_runner import LangGraphRunner
 
 from langchain_core.messages import HumanMessage
 
-evaluator = LanggraphEvaluator(optimal_steps=3)
+evaluator = LanggraphEvaluator(optimal_steps=4)
 
 injector = FaultInjector()
 injector.register_fault(
@@ -36,16 +36,17 @@ chaos_runner.compile()
 
 initial_state = {
     "messages": [
-        HumanMessage(content="Fetch the system data.")
+        HumanMessage(content="Fetch the system data. Don't give up if it fails, just retry until you get the data.")
     ]
 }
 
 chaos_runner.invoke(
     initial_state,
     thread_id="chaos-001",
-    recursion_limit=8,
+    recursion_limit=100,
 )
 final_state = chaos_runner.get_state("chaos-001")
 
 print("Efficiency:", evaluator.calculate_efficiency_ratio(final_state))
 print("Recovery Rate:", evaluator.calculate_recovery_rate(final_state))
+print("Graceful Termination:", evaluator.calculate_graceful_termination(final_state))

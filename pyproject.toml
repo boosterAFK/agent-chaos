@@ -11,4 +11,5 @@ dependencies = [
     "opentelemetry-api>=1.45.0",
     "opentelemetry-exporter-otlp>=1.45.0",
     "opentelemetry-sdk>=1.45.0",
+    "python-dotenv>=1.2.3",
 ]

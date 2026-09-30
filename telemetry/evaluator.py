@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from pyexpat.errors import messages
 from typing import Dict, Any, List
 
 
@@ -35,6 +36,21 @@ class MetricEvaluator:
             return 0.0 
             
         return 1.0
+
+    def calculate_graceful_termination(self, final_state: Dict[str, Any]) -> float:
+        """
+        Determines if the final state is a graceful termination method call (not an error).
+        Returns 1.0 for graceful termination, 0.0 otherwise.
+        """
+        messages = final_state.get("messages", [])
+        return 1.0 if not self.is_last_tool_call_safenet(messages) else 0.0
+
+    @abstractmethod
+    def is_last_tool_call_safenet(self, messages: list) -> Any:
+        """
+        Abstract method to retrieve the last tool call from the final state.
+        """
+        pass
 
     @abstractmethod
     def get_actual_steps(self, messages: list) -> int:

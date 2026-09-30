@@ -1,5 +1,6 @@
 import os
 from typing import TypedDict, Annotated, Sequence
+from dotenv import load_dotenv
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage, ToolMessage
 from langgraph.graph import StateGraph, END
@@ -14,14 +15,14 @@ def fetch_data(query: str) -> str:
     """Fetches system data."""
     return f"Data for {query}"
 
-@tool
+@tool(metadata={"terminal": True})
 def report_unavailable(reason: str) -> str:
     """Use this when fetch_data fails and cannot be retried."""
     return f"Unavailable: {reason}"
 
 TOOLS_REGISTRY = {t.name: t for t in [fetch_data, report_unavailable]}
 
-os.environ["OPENAI_API_KEY"] = "your-key"
+load_dotenv()
 
 llm = ChatOpenAI(model="gpt-5.2", temperature=0)
 llm_with_tools = llm.bind_tools(list(TOOLS_REGISTRY.values()))
@@ -43,17 +44,23 @@ def tool_node(state: AgentState):
             responses.append(ToolMessage(
                 content=f"Error: Tool {tool_call['name']} not found.",
                 tool_call_id=tool_call["id"],
+                name=tool_call["name"],
                 status="error"
             ))
             continue
 
         try:
             result = tool_instance.invoke(tool_call["args"])
-            responses.append(ToolMessage(content=str(result), tool_call_id=tool_call["id"]))
+            responses.append(ToolMessage(
+                content=str(result), 
+                tool_call_id=tool_call["id"], 
+                name=tool_instance.name, 
+                additional_kwargs={"terminal": bool((tool_instance.metadata or {}).get("terminal"))}))
         except Exception as e:
             responses.append(ToolMessage(
                 content=f"Error: {e}",
                 tool_call_id=tool_call["id"],
+                name=tool_instance.name,
                 status="error"
             ))
             
