@@ -1,10 +1,10 @@
-﻿# Agent Chaos Suite
+﻿# BlastRadius Eval Suite
 
 > **A headless testing harness that measures how multi-step agents behave when their tools fail.**
 
 Most benchmarks only score the final outcome - did it compile, did the string match. In production,
 what kills an agent is its **trajectory**: circular retry loops burning API credits, silent recovery
-failures, latency degradation under tool timeouts. Agent Chaos Suite subjects agent graphs to
+failures, latency degradation under tool timeouts. BlastRadius Eval Suite subjects agent graphs to
 deterministic, pre-computed fault schedules and scores the resulting trajectory.
 
 ---

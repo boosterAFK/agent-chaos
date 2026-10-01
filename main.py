@@ -1,5 +1,5 @@
 def main():
-    print("Hello from agent-chaos!")
+    print("Hello from blastradius-eval!")
 
 
 if __name__ == "__main__":

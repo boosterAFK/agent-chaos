@@ -8,7 +8,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
 class Instrumentation:
-    def __init__(self, service_name: str = "agent-chaos", otlp_endpoint: str = "http://localhost:4317" , enable_otlp: bool = True) -> None:
+    def __init__(self, service_name: str = "blastradius-eval", otlp_endpoint: str = "http://localhost:4317" , enable_otlp: bool = True) -> None:
         self.service_name = service_name
         self.otlp_endpoint = otlp_endpoint
         self.enable_otlp = enable_otlp
