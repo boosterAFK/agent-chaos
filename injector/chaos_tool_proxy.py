@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol
 
 from telemetry.instrumentation import Instrumentation
+from openinference.semconv.trace import SpanAttributes, OpenInferenceSpanKindValues
 
 if TYPE_CHECKING:
     from injector.base import Fault
@@ -27,10 +28,13 @@ class ChaosToolProxy:
         self.dispatcher = dispatcher
         self.instrumentation = dispatcher.instrumentation
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args, **kwargs):
         span = self.instrumentation.start_span(
-            f"tool.{self.tool_name}",
-            **{"tool.name": self.tool_name},
+            self.tool_name,  # span name
+            **{
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.TOOL.value,
+                SpanAttributes.TOOL_NAME: self.tool_name,
+            },
         )
         try:
             fault = self.dispatcher.dispatch(self.tool_name)
