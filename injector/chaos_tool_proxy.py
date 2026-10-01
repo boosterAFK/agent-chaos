@@ -1,6 +1,8 @@
-﻿from typing import Any, Callable, Generic, Optional, Protocol, TypeVar
+﻿from __future__ import annotations
 
-T = TypeVar("T", bound=Callable[..., Any])
+from typing import  Any, Callable, Optional, Protocol
+
+from injector.base import Fault
 
 
 class FaultDispatcher(Protocol):
@@ -9,12 +11,12 @@ class FaultDispatcher(Protocol):
     an observed tool call, return the fault to apply or None.
     """
 
-    def dispatch(self, tool_name: str) -> Optional[Any]:
+    def dispatch(self, tool_name: str) -> Optional[Fault]:
         ...
 
 
-class ChaosToolProxy(Generic[T]):
-    def __init__(self, tool_name: str, original_callable: T, dispatcher: FaultDispatcher) -> None:
+class ChaosToolProxy:
+    def __init__(self, tool_name: str, original_callable: Callable[..., Any], dispatcher: FaultDispatcher) -> None:
         self.tool_name = tool_name
         self.original_callable = original_callable
         self.dispatcher = dispatcher
