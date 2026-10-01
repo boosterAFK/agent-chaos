@@ -1,78 +1,168 @@
-# Agent Chaos Suite
+﻿# Agent Chaos Suite
 
-> **A headless testing harness for evaluating trajectory resilience in multi-step agent graphs.**
+> **A headless testing harness that measures how multi-step agents behave when their tools fail.**
 
----
-
-## The Industry Gap
-
-Most public benchmarks (like SWE-bench or basic QA benchmarks) only score the **final outcome**:
-
-- Did the code compile?
-- Did the string match?
-- Was the execution completed?
-
-In production, what kills an agent is its **trajectory**:
-
-- Circular retry loops that burn $50 in API credits
-- Hallucinated tool arguments
-- Silent recovery failures
-- Catastrophic latency degradation under tool timeouts
+Most benchmarks only score the final outcome - did it compile, did the string match. In production,
+what kills an agent is its **trajectory**: circular retry loops burning API credits, silent recovery
+failures, latency degradation under tool timeouts. Agent Chaos Suite subjects agent graphs to
+deterministic, pre-computed fault schedules and scores the resulting trajectory.
 
 ---
 
-## What We Built
+## Quickstart
 
-**Agent Chaos Suite** is a headless testing harness that subjects multi-step agent graphs (e.g., LangGraph, AutoGen) to synthetic failure modes to evaluate **trajectory resilience**.
+```bash
+# 1. Install dependencies (uv manages the .venv at the repo root)
+uv sync
 
----
+# 2. Add your OpenAI key
+cp .env.example .env   # then set OPENAI_API_KEY=...
 
-## Target Environments & Fault Injection
+# 3. Run the benchmark
+.venv\Scripts\python.exe examples/run_benchmark.py
+```
 
-We test on two natural occurrences of distributed agentic systems. Because protocols like MCP (Model Context Protocol) operate over the network, we systematically inject faults at two distinct layers **without needing to alter the agent's underlying source code**:
+Expected output:
 
-### HTTP-Level
-
-Simulating realistic transport API failures such as:
-
-- 504 timeouts
-- Connection drops
-- HTTP 429 rate limits
-
-### Semantic-Level
-
-Injecting malformed JSON responses, omission faults, and schema mutations into the agent's middleware to test its **cognitive resilience** and **hallucination risks**.
-
----
-
-## What We Measure (Trajectory Health Metrics)
-
-We compute concrete, quantitative scores to move beyond qualitative "vibe checks":
-
-| Metric                            | Description                                                                                   |
-| --------------------------------- | --------------------------------------------------------------------------------------------- |
-| **Step Efficiency Ratio**         | `Optimal Steps / Actual Steps Taken`                                                          |
-| **Self-Correction Recovery Rate** | The percentage of recovered states after encountering a tool error without human intervention |
-| **Cost/Token Blast Radius**       | The cost variance and token bloat under degraded environmental states                         |
+```
+Efficiency: 0.5714285714285714
+Recovery Rate: 1.0
+Graceful Termination: 1.0
+```
 
 ---
 
-## What We Provide
+## How it works
 
-### Automated Tracing
+```
+examples/langgraph/            PURE WORKFLOW CATALOG (test subjects)
+  minimal_llm_agent.py           -> TOOLS + build_workflow(tools) + PROMPT
+        |                          no imports from injector/runner/frameworks
+        v
+examples/run_benchmark.py      SOLE WIRING POINT
+        |
+        |-- FrameworkProvider (Abstract Factory)
+        |      -> make_runner() / make_evaluator() / make_tool_adapter()
+        |      frameworks/langgraph/: LangGraphProvider
+        |
+        +-- FaultInjector (dispatcher, framework-agnostic)
+               -> poison_tools()  clones tools via the adapter, swaps .func
+               -> dispatch()      routes each observed call to the schedulers
+                    |
+                    +-- FaultScheduler (pluggable strategies, own their logic)
+                    |      FixedCallScheduler  -> fire on call N  (at_calls=(1,2))
+                    |      GraphFaultScheduler -> x2 call arms x1 (trigger_on="...")
+                    |
+                    +-- ChaosToolProxy -> becomes the tool\'s func; per-call fault
+                                          decision means NO runtime graph mutation
+```
 
-Export full span trees showing tool calls, retry loops, and state changes to observability backends like **Jaeger** or **Arize Phoenix** via **OpenTelemetry**.
+### The pieces
 
-### Enterprise API & Mocking Engine
-
-An API to convert any existing project into a set of executable agents to run out-of-network. By adding annotations to your existing source code tests, you can convert internal tools into basic agents. This allows companies to target internal systems safely without world-facing exposure.
-
-### Interactive UI
-
-A dedicated dashboard to visualize execution parameters, manipulate fault injection strategies, and play with the telemetry data in real-time.
+| Component | Role |
+| --- | --- |
+| **Workflow catalog** (`examples/langgraph/`) | Pure test subjects. Each module exposes `TOOLS`, `build_workflow(tools)`, and `PROMPT`. They never import chaos code. |
+| **FaultScheduler** (`injector/schedulers/`) | Pluggable strategies that decide WHEN a fault fires. Each owns its arming logic and state. |
+| **FaultInjector** (`injector/base.py`) | Framework-agnostic dispatcher. Owns the scheduler set, enforces strict target ownership, produces poisoned tool clones. |
+| **ChaosToolProxy** (`injector/chaos_tool_proxy.py`) | Generic callable wrapper installed as the tool\'s `func`; asks the injector on every call whether to fault. |
+| **FrameworkProvider** (`frameworks/`) | Abstract Factory returning a matched family (runner + evaluator + tool adapter) for one framework. |
+| **AgentRunner** (`runner/base.py`, `frameworks/langgraph/runner.py`) | Dumb executor. Receives a fully-built (already-poisoned) workflow; never touches tools or faults. |
 
 ---
 
-## Summary
+## Writing your own scenario
 
-Agent Chaos Suite moves agent evaluation beyond pass/fail outcomes and into the realm of **trajectory health**—measuring how agents behave when the network fails, the schema breaks, and the retries pile up.
+```python
+from frameworks.langgraph import LangGraphProvider
+from examples.langgraph.minimal_llm_agent import PROMPT, TOOLS, build_workflow
+from injector.base import FaultInjector
+from injector.faults import TimeoutFault
+from injector.schedulers import FixedCallScheduler
+from langchain_core.messages import HumanMessage
+
+framework = LangGraphProvider()
+
+# 1. Arm a scheduling strategy (it owns its arming logic).
+scheduler = FixedCallScheduler()
+scheduler.register_fault("fetch_data", TimeoutFault(delay_seconds=0.1), at_calls=(1, 2))
+
+# 2. Poison the tools (originals stay pristine) and build the workflow.
+injector = FaultInjector(schedulers=[scheduler], adapter=framework.make_tool_adapter())
+workflow = build_workflow(injector.poison_tools(TOOLS))
+
+# 3. Run with a dumb executor and score the trajectory.
+runner = framework.make_runner(uncompiled_graph=workflow)
+runner.invoke({"messages": [HumanMessage(content=PROMPT)]}, thread_id="chaos-001", recursion_limit=100)
+final_state = runner.get_state("chaos-001")
+
+evaluator = framework.make_evaluator(optimal_steps=4)
+print(evaluator.calculate_efficiency_ratio(final_state))
+print(evaluator.calculate_recovery_rate(final_state))
+print(evaluator.calculate_graceful_termination(final_state))
+```
+
+### Cross-tool triggers
+
+`GraphFaultScheduler` expresses interaction logic across tools - e.g. "after
+`report_unavailable` is called, the NEXT `fetch_data` call fails":
+
+```python
+from injector.schedulers import GraphFaultScheduler
+
+graph = GraphFaultScheduler()
+graph.register_fault("fetch_data", TimeoutFault(delay_seconds=0.1), trigger_on="report_unavailable")
+```
+
+Trigger tools are observed but never faulted; each trigger call arms the target, the fault fires once,
+then the target recovers until re-armed.
+
+---
+
+## What we measure
+
+| Metric | Description |
+| --- | --- |
+| **Step Efficiency Ratio** | `Optimal Steps / Actual Steps Taken` |
+| **Self-Correction Recovery Rate** | Recovered states after a tool error, no human intervention |
+| **Graceful Termination** | Whether the run ends via a designated terminal path rather than an error |
+| **Cost/Token Blast Radius** | Cost variance and token bloat under degraded states (roadmap) |
+
+---
+
+## Design guarantees
+
+- **Deterministic.** The same fault schedule always produces the same trajectory - reproducible
+  benchmarks, not random chaos.
+- **Clone-don\'t-mutate.** Poisoning clones tools (`model_copy` + `func` swap); originals stay
+  pristine and reusable, and no graph is ever mutated at runtime.
+- **Strict ownership.** Two schedulers cannot target the same tool; the injector raises on conflict.
+- **Dumb runners.** Runners receive a finished workflow and cannot leak faults between runs.
+
+---
+
+## Project layout
+
+```
+injector/            chaos core: Fault, FaultInjector (dispatcher), ChaosToolProxy
+  schedulers/          pluggable strategies: FixedCallScheduler, GraphFaultScheduler
+  adapters/base.py     ToolAdapter ABC (framework-agnostic tool seam)
+  faults/              TimeoutFault, RateLimitFault, MalformedJSONFault, SchemaMutationFault
+frameworks/          Abstract Factory per framework
+  base.py              FrameworkProvider ABC
+  langgraph/           LangGraphProvider: runner + evaluator + tool adapter
+runner/base.py       AgentRunner ABC (framework-agnostic executor)
+telemetry/           MetricEvaluator ABC + instrumentation (OTel, stub)
+examples/
+  langgraph/           pure workflow catalog (TOOLS, build_workflow, PROMPT)
+  run_benchmark.py     sole benchmark entry point
+infrastructure/      docker-compose for Jaeger / otel-collector
+```
+
+---
+
+## Roadmap
+
+- OpenTelemetry span export to Jaeger / Arize Phoenix (instrumentation is currently a stub).
+- HTTP-level fault injection at the MCP transport layer (504s, connection drops, 429s).
+- Async tool support, richer scheduler conditions, fault-reactive schedulers.
+- Enterprise API & mocking engine; interactive telemetry dashboard.
