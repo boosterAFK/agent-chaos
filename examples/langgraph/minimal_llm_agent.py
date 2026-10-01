@@ -43,7 +43,6 @@ PROMPT = (
 
 load_dotenv()
 
-
 llm = ChatOpenAI(model="gpt-5.2", temperature=0)
 
 
