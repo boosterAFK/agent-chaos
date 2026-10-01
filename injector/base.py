@@ -1,37 +1,79 @@
-from abc import ABC, abstractmethod
+﻿from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, List
+from typing import Any, List, Optional
+
+from injector.adapters.base import ToolAdapter
+from injector.adapters.langchain import LangChainToolAdapter
+from injector.chaos_tool_proxy import ChaosToolProxy
+from injector.langchain_adapter import wrap_langchain_tool
+from injector.schedulers.base import FaultScheduler
+from telemetry.instrumentation import Instrumentation
+
 
 class Fault(ABC):
     @abstractmethod
     def apply(self, tool_name: str, original_callable: Callable, *args, **kwargs) -> Any:
         pass
 
-class FaultInjector(ABC):
 
-    def __init__(self):
-        self._fault_registry: dict[str, Fault] = {}
+class FaultInjector:
 
-    def register_fault(self, target_tool: str, fault: Fault) -> None:
-        self._fault_registry[target_tool] = fault
+    def __init__(
+        self,
+        schedulers: Optional[List[FaultScheduler]] = None,
+        instrumentation: Optional[Instrumentation] = None,
+        adapter: ToolAdapter = None
+    ):
+        self._schedulers: List[FaultScheduler] = []
+        self._instrumentation = instrumentation
+        for scheduler in schedulers or []:
+            self.add_scheduler(scheduler)
+        self._adapter = adapter or LangChainToolAdapter()
 
-    def unregister_fault(self, target_tool: str) -> None:
-        if target_tool in self._fault_registry:
-            del self._fault_registry[target_tool]
+    @property
+    def schedulers(self) -> tuple[FaultScheduler, ...]:
+        return tuple(self._schedulers)
 
-    def clear_faults(self) -> None:
-        self._fault_registry.clear()
+    def add_scheduler(self, scheduler: FaultScheduler) -> None:
+        overlap = scheduler.targets() & self._owned_targets()
+        if overlap:
+            raise ValueError(
+                f"Scheduler target conflict: tools {sorted(overlap)} are already "
+                "owned by another registered scheduler. Each tool must have "
+                "exactly one fault owner - compose behaviour explicitly instead."
+            )
+        self._schedulers.append(scheduler)
 
-    def get_faults(self) -> dict[str, Fault]:
-        return self._fault_registry
+    def reset_run(self) -> None:
+        for scheduler in self._schedulers:
+            scheduler.reset()
 
-    def intercept(self, tool_name: str, original_callable: Callable) -> Callable:
-        """Returns a wrapped function if a fault is registered, else the original."""
-        fault = self._fault_registry.get(tool_name)
-        if not fault:
-            return original_callable
+    def dispatch(self, tool_name: str) -> Optional[Fault]:
+        for scheduler in self._schedulers:
+            if tool_name not in scheduler.watches():
+                continue
+            fault = scheduler.on_tool_call(tool_name)
+            if fault is not None:
+                return fault
+        return None
 
-        def wrapper(*args, **kwargs):
-            return fault.apply(tool_name, original_callable, *args, **kwargs)
-            
-        return wrapper
+    def poison_tools(self, tools: List[Any]) -> List[Any]:
+        watched = set()
+        for scheduler in self._schedulers:
+            watched |= scheduler.watches()
+
+        poisoned: List[Any] = []
+        for tool in tools:
+            name = self._adapter.get_name(tool)
+            if name not in watched:
+                poisoned.append(tool)
+                continue
+            proxy = ChaosToolProxy(name, self._adapter.get_callable(tool), self)
+            poisoned.append(self._adapter.clone_with_callable(tool, proxy))
+        return poisoned
+
+    def _owned_targets(self) -> set:
+        owned: set = set()
+        for scheduler in self._schedulers:
+            owned |= scheduler.targets()
+        return owned
