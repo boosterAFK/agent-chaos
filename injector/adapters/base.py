@@ -6,7 +6,7 @@ from typing import Callable, Any
 
 class ToolAdapter(ABC):
     @abstractmethod
-    def get_name(self, tool: v) -> str: ...
+    def get_name(self, tool: Any) -> str: ...
     @abstractmethod
     def get_callable(self, tool: Any) -> Callable: ...          # the func to wrap
     @abstractmethod

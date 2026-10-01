@@ -1,8 +1,7 @@
 # injector/adapters/langchain.py
 from injector.adapters.base import ToolAdapter
 
-
-class LangChainToolAdapter(ToolAdapter):
+class LangGraphToolAdapter(ToolAdapter):
     def get_name(self, tool):            return tool.name
     def get_callable(self, tool):        return tool.func
     def clone_with_callable(self, tool, fn): 

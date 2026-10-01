@@ -3,7 +3,6 @@ from collections.abc import Callable
 from typing import Any, List, Optional
 
 from injector.adapters.base import ToolAdapter
-from injector.adapters.langchain import LangChainToolAdapter
 from injector.chaos_tool_proxy import ChaosToolProxy
 from injector.schedulers.base import FaultScheduler
 from telemetry.instrumentation import Instrumentation
@@ -19,15 +18,16 @@ class FaultInjector:
 
     def __init__(
         self,
+        adapter: ToolAdapter,
         schedulers: Optional[List[FaultScheduler]] = None,
         instrumentation: Optional[Instrumentation] = None,
-        adapter: ToolAdapter = None
+       
     ):
         self._schedulers: List[FaultScheduler] = []
         self._instrumentation = instrumentation
         for scheduler in schedulers or []:
             self.add_scheduler(scheduler)
-        self._adapter = adapter or LangChainToolAdapter()
+        self._adapter = adapter 
 
     @property
     def schedulers(self) -> tuple[FaultScheduler, ...]:

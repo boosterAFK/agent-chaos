@@ -1,4 +1,4 @@
-﻿from logging import warning
+from logging import warning
 from typing import Any, Dict, Optional
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -7,7 +7,6 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 
 from runner.base import AgentRunner
-
 
 class LangGraphRunner(AgentRunner):
     def __init__(

@@ -5,7 +5,8 @@ from telemetry.evaluator import MetricEvaluator
 from langchain_core.messages import HumanMessage, ToolMessage
 
 
-class LanggraphEvaluator(MetricEvaluator):
+
+class LangGraphEvaluator(MetricEvaluator):
     def __init__(self, optimal_steps: int):
         super().__init__(optimal_steps)
 
