@@ -5,7 +5,6 @@ from typing import Any, List, Optional
 from injector.adapters.base import ToolAdapter
 from injector.adapters.langchain import LangChainToolAdapter
 from injector.chaos_tool_proxy import ChaosToolProxy
-from injector.langchain_adapter import wrap_langchain_tool
 from injector.schedulers.base import FaultScheduler
 from telemetry.instrumentation import Instrumentation
 
