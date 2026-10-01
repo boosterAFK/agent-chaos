@@ -15,7 +15,7 @@ def fetch_data(query: str) -> str:
     """Fetches system data."""
     return f"Data for {query}"
 
-@tool(metadata={"terminal": True})
+@tool(extras={"terminal": True})
 def report_unavailable(reason: str) -> str:
     """Use this when fetch_data fails and cannot be retried."""
     return f"Unavailable: {reason}"
