@@ -14,7 +14,7 @@ class Fault(ABC):
         pass
 
 
-class FaultInjector(Protocol):
+class FaultInjector:
 
     def __init__(
         self,
@@ -32,6 +32,10 @@ class FaultInjector(Protocol):
     @property
     def schedulers(self) -> tuple[FaultScheduler, ...]:
         return tuple(self._schedulers)
+
+    @property
+    def instrumentation(self) -> Instrumentation:
+        return self._instrumentation
 
     def add_scheduler(self, scheduler: FaultScheduler) -> None:
         overlap = scheduler.targets() & self._owned_targets()

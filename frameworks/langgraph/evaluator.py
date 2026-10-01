@@ -1,12 +1,12 @@
 
 from typing import List,Any
 
-from telemetry.evaluator import MetricEvaluator
+from telemetry.evaluator import Evaluator
 from langchain_core.messages import HumanMessage, ToolMessage
 
 
 
-class LangGraphEvaluator(MetricEvaluator):
+class LangGraphEvaluator(Evaluator):
     def __init__(self, optimal_steps: int):
         super().__init__(optimal_steps)
 

@@ -6,7 +6,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-
+from opentelemetry.sdk.trace import TracerProvider
 class Instrumentation:
     def __init__(self, service_name: str = "blastradius-eval", otlp_endpoint: str = "http://localhost:4317" , enable_otlp: bool = True) -> None:
         self.service_name = service_name
@@ -14,7 +14,7 @@ class Instrumentation:
         self.enable_otlp = enable_otlp
 
         self.resource = Resource.create({"service.name": self.service_name})
-        self.provider = trace.TracerProvider(resource=self.resource)
+        self.provider = TracerProvider(resource=self.resource)
 
         self._memory = InMemorySpanExporter()
         self.provider.add_span_processor(SimpleSpanProcessor(self._memory))
@@ -34,7 +34,7 @@ class Instrumentation:
     def end_span(self, span: trace.Span, status: str = "OK", **attrs) -> None:
         if attrs:
             span.set_attributes(attrs)
-        span.set_status(trace.Status(status))
+        span.set_status(trace.Status(trace.StatusCode.OK if status.lower() == "ok" else trace.StatusCode.ERROR))
         span.end()
 
 

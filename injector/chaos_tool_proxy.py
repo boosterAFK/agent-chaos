@@ -14,12 +14,10 @@ class FaultDispatcher(Protocol):
     an observed tool call, return the fault to apply or None.
     """
 
-    def dispatch(self, tool_name: str) -> Optional[Fault]:
-        ...
+    def dispatch(self, tool_name: str) -> Optional[Fault]: ...
 
     @property
-    def instrumentation(self) -> Instrumentation:
-        return self._instrumentation
+    def instrumentation(self) -> Instrumentation: ...
 
 
 class ChaosToolProxy:
