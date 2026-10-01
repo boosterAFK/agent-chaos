@@ -3,7 +3,7 @@ from typing import Any
 
 from injector.adapters.base import ToolAdapter
 from runner.base import AgentRunner
-from telemetry.evaluator import MetricEvaluator
+from telemetry.evaluator import Evaluator
 
 
 class FrameworkProvider(ABC):
@@ -22,5 +22,5 @@ class FrameworkProvider(ABC):
         ...
 
     @abstractmethod
-    def make_evaluator(self, *args: Any, **kwargs: Any) -> MetricEvaluator:
+    def make_evaluator(self, *args: Any, **kwargs: Any) -> Evaluator:
         ...
