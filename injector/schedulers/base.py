@@ -70,3 +70,12 @@ class FaultScheduler(ABC):
         Clear runtime state between benchmark runs (counters, armed flags,
         FSM positions). The armed schedule/rules themselves are preserved.
         """
+
+    def forced_extra_steps(self) -> int:
+        """
+        Minimum extra steps the scheduled faults force even a perfect agent to
+        take (e.g. an unavoidable error plus the reasoning step to recover).
+        Used to derive a fault-aware Step Efficiency baseline. Default: 0
+        (no forced cost); schedulers that guarantee faults override this.
+        """
+        return 0

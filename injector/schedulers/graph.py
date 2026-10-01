@@ -70,3 +70,9 @@ class GraphFaultScheduler(FaultScheduler):
 
     def reset(self) -> None:
         self._armed.clear()
+
+    def forced_extra_steps(self) -> int:
+        # Each armed target must fail once (an error tool message) and trigger
+        # one extra LLM reasoning step to recover before the clean retry:
+        # +2 per distinct armed target a perfect agent cannot avoid.
+        return 2 * len(self._rules)
