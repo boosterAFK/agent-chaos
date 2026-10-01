@@ -1,9 +1,8 @@
 from abc import abstractmethod
-from pyexpat.errors import messages
 from typing import Dict, Any, List
 
 
-class MetricEvaluator:
+class Evaluator:
 
     def __init__(self, optimal_steps: int):
         self.optimal_steps = optimal_steps

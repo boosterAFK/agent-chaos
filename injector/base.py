@@ -1,6 +1,6 @@
 ﻿from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Protocol
 
 from injector.adapters.base import ToolAdapter
 from injector.chaos_tool_proxy import ChaosToolProxy
@@ -14,7 +14,7 @@ class Fault(ABC):
         pass
 
 
-class FaultInjector:
+class FaultInjector(Protocol):
 
     def __init__(
         self,
