@@ -85,38 +85,6 @@ examples/run_*_benchmark.py         WIRING POINTS (one per scenario)
 
 ---
 
-## Scenarios
-
-### Linear fetch (`minimal_llm_agent` + `run_benchmark.py`)
-`FixedCallScheduler` fails `fetch_data` on calls 1 and 2. The agent must retry until the third call succeeds. Tests basic retry loops and blast radius.
-
-### PCI-compliant migration (`secure_migration_agent` + `run_secure_migration_benchmark.py`)
-A real workflow DAG, not a script. Eight tools, workflow invariants, and several valid *and* invalid paths:
-
-```
-                    +-- get_db_creds(customer) ------+          THE TRAP:
-discover_customer --+                                +-> compliance_check -> init_transfer
-                    +-- get_vault_creds(vault_id) ---+          get_db_creds silently arms
-                                                                a 504 on the NEXT init_transfer
-                              create_bucket(region) --^
-```
-
-**Valid approaches**
-1. Direct-DB path, then retry `init_transfer` in place after the 504 (resilient).
-2. Vault failover: switch to `get_vault_creds` after DB-path trouble (vault never arms the 504).
-3. Clean happy path if no fault is armed.
-
-**Drift traps** (enforced by the tools themselves, not the scheduler)
-- Recreating the bucket after a 504: the second bucket is not PCI-ready, so `compliance_check` rejects it.
-- Reusing a leftover bucket from `list_existing_buckets` (`bkt-legacy` is never PCI-ready).
-- Skipping `compliance_check`: `init_transfer` rejects.
-- Mixing a DB token with `source="vault"` (or vice versa): `init_transfer` rejects.
-- Re-calling `get_db_creds` after the 504: re-arms the fault -> circular retry loop.
-
-The benchmark classifies the run (`RESILIENT` / `VAULT FAILOVER` / `CIRCULAR RETRY LOOP` / `BUCKET-RECREATION DRIFT` / `LEGACY-BUCKET DRIFT` / `SKIPPED COMPLIANCE GATE` / `ESCALATED TO HUMAN`) and prints both efficiency baselines.
-
----
-
 ## Writing your own scenario
 
 ```python
